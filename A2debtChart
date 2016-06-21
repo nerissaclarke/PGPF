@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js" charset="utf-8"></script>
+
+<style type="text/css">
+
+
+div{
+    text-align: center;
+    display: inline-block;    
+}
+table{
+  padding-left: 50 px;
+}
+
+img{
+  padding: 10px 20px 10px 10px;
+}
+
+h1{
+  font-family:'tradegothiclt', 'avenir', 'tradegothiclt-bold','sans-serif';
+  font-size: 28px;
+  color: #0067b1;
+}
+
+.buttonToggle{
+  text-align: center;
+  font-family: sans-serif;
+  background: gray;
+  padding: 10px 20px 10px 10px;
+  display: inline-block;
+
+} 
+
+.axis path {
+   stroke: #7F7F7F;
+   stroke-width: 1;
+   stroke-opacity: 1;
+
+   /*ticks:;what ticks? styling? add here how do I get the text to do slightly down? Padding around the text?*/
+}
+
+
+.axis text{
+  font-family: Arial;
+  font-size: 20px;
+  padding: 50px;
+}
+
+.actualProj{
+  stroke: #7f7f7f;
+  stroke-width: 1.5px;
+  stroke-dasharray: 2,2;
+  shape-rendering: crispEdges;
+}
+
+
+.domain{
+  fill: none;
+  stroke:#000;
+}
+
+.dots{
+  fill: steelblue;
+}
+
+.afsDots{
+  fill: yellow;
+}
+/*Putting fill:none here is important because it gets rid of the negative space shape that is created. Make SURE you have a strong color and width though, or the line will not show up*/
+
+
+.baselineDebtLine{
+  fill: none;
+  stroke-width: 5;
+  stroke: white;
+  stroke-dasharray: 5;
+}
+
+.baselineDebtArea{
+  fill: #be1e2d;
+  fill-opacity: .95;
+}
+
+.afsDebtLine{
+  fill: none;
+  stroke-width: 5;
+  stroke: white;
+}
+
+.afsDebtArea{
+  fill: #be1e2d;
+  fill-opacity: .95;
+}
+</style>
+
+<body>
+  <table>
+    <tr>  
+      <td><img src= "http://www.pgpf.org/sites/all/themes/pgpf/images/common/PeterGPetersonFoundationLogo.svg"/>
+      </td>
+      <td> <h1>     Federal debt is on an unsustainable path </h1>
+      </td>
+    </tr>
+    <tr>
+      <td></td>
+      <td class= buttonToggle></td>
+    </tr>
+  </table>
+
+  <p> <div>
+
+      </div>
+</p>
+
+</body>
+
+<script>
+
+//Regular margin conventions
+
+var margin = {top: 60, right: 80, bottom: 80, left: 80};
+var width = 1000 - margin.left - margin.right,
+    height = 600 - margin.top - margin.bottom;
+
+//AXES
+
+//X scale is as a timescale, need to convert the X axis into a timescale, here. -Height makes sure that the axes are in the correct spot (orient makes sure they are placed on the right part of the page)
+
+//It is good to have the XScale, yScale, X axis and Y axis, & svg, etc outside of the data (as global variables) because it allows us to use them again in different iterations.
+
+var xScale = d3.time.scale()
+   .domain([1966, 2040])
+    .range([0,width]);
+
+var yScale = d3.scale.linear()
+    .range([height, 0])
+    //the range here determines how much of the svg is taken up by axes. For different ranges of axes labels, go to the line of code that says: xScale.domain/yScale.domain
+
+var xAxis = d3.svg.axis()
+    .scale(xScale)
+    //.tickValues([1970, 1975, 1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020, 2025, 2030, 2035, 2040 ])
+    //.tickSize(-height)
+    .orient("bottom")
+    .tickPadding(15)
+    .outerTickSize([10]);
+    
+
+//parseDate changes it into a specific number (that contains year, month, day, time). Formatdate then converts that into the format we want (%Y converts the date to a 4 number year (ie. 2015)). More convensions include: https://github.com/d3/d3/wiki/Time-Formatting
+
+var parseDate = d3.time.format("%Y").parse,
+    formatDate = d3.time.format("%Y");
+
+var yAxis = d3.svg.axis()
+    .scale(yScale)
+   //.tickSize(width)
+    .orient("left")
+    //This allows you to format the ticks (add in % of $ as a styling thing). The 0.2 gives you decimal points
+    .tickPadding(15)
+    .tickFormat(d3.format("%"));
+
+ 
+ //Create a group container to hold the axes (and the data)
+  var svg = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+    .style("font-family", "avenir")
+    .style("font-size", "14px");
+
+
+//svg.line is a line generator. Interpolate determines how the lines connect to the data plots
+//the x and y here determine what the x and y points are.
+
+var baselineDebtLine = d3.svg.line()
+  .interpolate("basis")
+  //other options: cardinal, linear, basis, step, check out in spline editor under blocks
+  .x(function(d){return xScale(d.fiscalYear);})
+  .y(function(d){return yScale(d.baselineDebt);})
+
+
+var afsDebtLine = d3.svg.line()
+  .interpolate("basis")
+  //other options: cardinal, linear, basis, step, check out in spline editor under blocks
+  .x(function(d){return xScale(d.fiscalYear);})
+  .y(function(d){return yScale(d.afsDebt);})
+
+var baselineDebtArea = d3.svg.area()
+     .interpolate("basis")
+     .x(function(d) { return xScale(d.fiscalYear); })
+     .y1(function(d) { return yScale(d.baselineDebt); })
+     .y0(height)
+
+var afsDebtArea = d3.svg.area()
+     .interpolate("basis")
+     .x(function(d) { return xScale(d.fiscalYear); })
+     .y1(function(d) { return yScale(d.afsDebt); })
+     .y0(height)
+//   
+//   //add in actual projected line here
+//   //X Axis
+//   svg.append("line")
+//     .attr("x1", 0)
+//     .attr("x2", width)
+//     .attr("y1", height)
+//     .attr("y2", height)
+//     .style("stroke","#7F7F7F");
+//   
+//   //Y Axis line
+//   svg.append("line")
+//     .attr("x1", 0)
+//     .attr("x2", 0)
+//     .attr("y1", 0)
+//     .attr("y2", height)
+//     .style("stroke","#7F7F7F");
+//   
+//connect to data here
+
+d3.csv("cbo1966-2040.csv", function(error, data) {
+
+   if (error) return console.warn(error);
+  
+  //This helps us to see what the data looks like here
+   console.log(data);
+
+   //this is a time scale
+
+   data.forEach(function(d) {
+       d.revenues = +d.revenues;
+       d.spending = +d.spending;
+       d.baselineDebt= +d.baselineDebt;
+       d.afsDebt= +d.afsDebt;
+       d.fiscalYear = parseDate(d.fiscalYear);
+       d.jsVersion = new Date(d.fiscalYear);
+       d.formattedYear = +formatDate(d.fiscalYear);
+   })
+
+   //Assigns the x and y scales to the data that we have. We are going to use the AFS scale, because we want the scale to be the same for both years
+   xScale.domain(d3.extent(data, function(d) { return d.fiscalYear; }))
+   yScale.domain(d3.extent(data, function(d) { return +d.afsDebt; })).nice()
+   //yScale.domain([0, d3.max(data, function(d) { return +d.afsDebt; })).nice()
+
+console.log(xScale(parseDate("2015")););
+
+   //yScale.domain(d3.extent(
+
+
+//Chart 1: AFS Chart (added onto the same SVG so that we can toggle)
+
+   //Creates a group for the Y axis
+   svg.append("g")
+       //.attr("transform","translate(" + width + ",0)")
+       .attr("class", "axis")
+       .call(yAxis)
+
+  //Creates a group for the X axis
+  svg.append("g")
+       .attr("transform","translate(0," + height + ")")
+       .attr("class", "axis")
+       .call(xAxis)
+
+//filters the data to the specific type of data that we are interested in displaying here
+//var baselineDebtProjections= data.filter(function(d){return d.fiscalYear>= "2015"})
+//console.log(baselineDebtProjections);
+
+//Once the points have been plotted, add a path, that uses the income line generator (defined outside of the data to create an income )
+svg.append("path")
+.datum(data)
+.attr("class", "afsDebtLine")
+.attr("d", afsDebtLine);
+
+//d attribute here is a way to indicate they are coming up with a path line, about to draw a shape
+
+ svg.append("path")
+      .datum(data)
+     .attr("class", "afsDebtArea")
+     .attr("d", afsDebtArea)
+     .on("click", function(){
+
+     }
+
+      );
+
+//assigns points to each of the plot points that we are interested in
+svg.selectAll(".dots")
+      .data(data)
+  .enter().append("circle")
+      .attr("class","afsDots")
+      .attr("cx", function(d) { return xScale(d.fiscalYear); })
+      .attr("cy", function(d) { return yScale(d.afsDebt); })
+      .attr("r", 0);
+
+//If you want to filter the data in anyway before displaying it: filters the data to the specific type of data that we are interested in displaying here
+//var baselineDebtProjections= data.filter(function(d){return d.fiscalYear>= "2015"})
+//console.log(baselineDebtProjections);
+
+
+//Chart 2: Baseline (I put baseline after AFS because it is smaller and so this draws the line on top of it). IF you want them to be in a different graph, create a new SVG first.
+
+//Once the points have been plotted, add a path, that uses the income line generator (defined outside of the data to create an income )
+svg.append("path")
+.datum(data)
+.attr("class", "baselineDebtLine")
+.attr("d", baselineDebtLine);
+
+//d attribute here is a way to indicate they are coming up with a path line, about to draw a shape
+
+ svg.append("path")
+      .datum(data)
+     .attr("class", "baselineDebtArea")
+     .attr("d", baselineDebtArea);
+
+//assigns points to each of the plot points that we are interested in
+svg.selectAll(".dots")
+      .data(data)
+  .enter().append("circle")
+      .attr("class","dots")
+      .attr("cx", function(d) { return xScale(d.fiscalYear); })
+      .attr("cy", function(d) { return yScale(d.baselineDebt); })
+      .attr("r", 0)
+
+
+
+////Add in the button here
+//svg.append("button")
+//  .attr("x", )
+//  .attr("y", )
+
+svg.append("button")
+  .attr("x", 0)             
+  .attr("y", height + margin.top + 30)    
+  .attr("class", "legend")
+  .style("fill", "red")         
+  .on("click", function(){
+    // Determine if current line is visible
+    var active   = redLine.active ? false : true ,
+      newOpacity = active ? 0 : 1;
+    // Hide or show the elements
+    d3.select("#redLine").style("opacity", newOpacity);
+    d3.select("#redAxis").style("opacity", newOpacity);
+    // Update whether or not the elements are active
+    redLine.active = active;
+  })
+  .text("Red Line");
+
+//Add button, give it a place, give it text, create a new function that is a click on button
+//when you click on BASELINE: fill NONE for AFS. Fill Red for baseline (selecting variables for )
+
+var baselineButton= d3.selectAll("button").
+  .x()
+  .y()
+  .attr("class","baselineButton")
+  .attr("text","Baseline")
+  .on("click", function(){
+    var active =  baselineDebtArea.active ? false : true,
+    newOpacity = active ? 0: 1
+    d3.select("#baseline").style("opacity", newOpacity);
+    ;
+      //select (data values). X and Y are Years and d.baselinedataareas, whatever the variable name is  var baselineDebtArea, var afsDebtArea 
+  
+      
+      select(".baselineDebtArea")
+      .style("fill", "red");
+      select(".afsDebtArea")
+      .style("fill","none");
+
+
+  //g tags don't get a data point, need to do transform/translate here
+  d3.select(".baselineDebtArea")
+    .style("fill", "blue")
+    baselineDebtArea.active = active;
+  });
+
+
+
+
+ // })
+
+
+//
+////legend:: CHECK THIS
+//
+//  var legend = svg.selectAll(".legend")
+//      .data(color.domain().slice().reverse())
+//    .enter().append("g")
+//      .attr("class", "legend")
+//      .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
+//
+//  legend.append("rect")
+//      .attr("x", width - 18)
+//      .attr("width", 18)
+//      .attr("height", 18)
+//      .style("fill", color);
+//
+//  legend.append("text")
+//      .attr("x", width - 24)
+//      .attr("y", 9)
+//      .attr("dy", ".35em")
+//      .style("text-anchor", "end")
+//      .text(function(d) { return d; });
+
+//For HTTP?
+//        <button id = "baseline"> </button>
+      // <button id = "afs"> </button>
+//
+
+
+
+
+window.data= data;
+
+//Actual/Projected Line
+//How do I assign a value from a domain and have it show up in the range here? Replace 2015 with the range value that represents 2015 from the domain
+svg.append("line")
+  .attr("x1", 548)
+  .attr("x2", 548)
+  .attr("y1", 0)
+  .attr("y2", height)
+  .attr("class", "actualProj")
+  .style("stroke","#7f7f7f")
+  .style("stroke-width", "1.5px")
+  .style("stroke-dasharray", "5px");
+
+svg.append("text")
+  .attr("x", 493)
+  .attr("y", 10)
+  //.x (//reference actual projected line here//)
+  //.y (//reference actual projected line here//)
+  .text("Actual")
+  .style("font-family", "avenir")
+  .style("font-size", "14px");
+
+svg.append("text")
+  .attr("x", 565)
+  .attr("y", 10)
+  //.x (//reference actual projected line here//)
+  //.y (//reference actual projected line here//)
+  .text("Projected")
+  .style("font-family", "avenir")
+  .style("font-size", "14px");
+ });
+
+
+</script>
+
+
+CBO1966-2040.tsv
+
+fiscalYear	revenues	spending	deficits	baselineDebt	afsDebt
+1966	0.167	0.172	-0.005	0.337	0.337
+1967	0.178	0.188	-0.01	0.318	0.318
+1968	0.17	0.198	-0.028	0.322	0.322
+1969	0.19	0.187	0.003	0.283	0.283
+1970	0.184	0.187	-0.003	0.27	0.27
+1971	0.167	0.188	-0.021	0.271	0.271
+1972	0.17	0.189	-0.019	0.264	0.264
+1973	0.17	0.181	-0.011	0.251	0.251
+1974	0.177	0.181	-0.004	0.231	0.231
+1975	0.173	0.206	-0.033	0.245	0.245
+1976	0.166	0.208	-0.041	0.267	0.267
+1977	0.175	0.202	-0.026	0.271	0.271
+1978	0.175	0.201	-0.026	0.266	0.266
+1979	0.18	0.196	-0.016	0.249	0.249
+1980	0.185	0.211	-0.026	0.255	0.255
+1981	0.191	0.216	-0.025	0.252	0.252
+1982	0.186	0.225	-0.039	0.279	0.279
+1983	0.17	0.228	-0.059	0.321	0.321
+1984	0.169	0.215	-0.047	0.331	0.331
+1985	0.172	0.222	-0.05	0.353	0.353
+1986	0.17	0.218	-0.049	0.384	0.384
+1987	0.179	0.21	-0.031	0.395	0.395
+1988	0.176	0.206	-0.03	0.398	0.398
+1989	0.178	0.205	-0.027	0.393	0.393
+1990	0.174	0.212	-0.037	0.408	0.408
+1991	0.173	0.217	-0.044	0.44	0.44
+1992	0.17	0.215	-0.045	0.466	0.466
+1993	0.17	0.207	-0.038	0.478	0.478
+1994	0.175	0.203	-0.028	0.477	0.477
+1995	0.178	0.2	-0.022	0.475	0.475
+1996	0.182	0.196	-0.013	0.468	0.468
+1997	0.186	0.189	-0.003	0.445	0.445
+1998	0.192	0.185	0.008	0.416	0.416
+1999	0.192	0.179	0.013	0.382	0.382
+2000	0.2	0.176	0.023	0.336	0.336
+2001	0.188	0.176	0.012	0.314	0.314
+2002	0.17	0.185	-0.015	0.326	0.326
+2003	0.157	0.191	-0.033	0.345	0.345
+2004	0.156	0.19	-0.034	0.355	0.355
+2005	0.167	0.192	-0.025	0.356	0.356
+2006	0.176	0.194	-0.018	0.353	0.353
+2007	0.179	0.191	-0.011	0.352	0.352
+2008	0.171	0.202	-0.031	0.393	0.393
+2009	0.146	0.244	-0.098	0.523	0.523
+2010	0.146	0.234	-0.087	0.609	0.609
+2011	0.15	0.234	-0.085	0.659	0.659
+2012	0.153	0.221	-0.068	0.704	0.704
+2013	0.168	0.209	-0.041	0.726	0.726
+2014	0.176	0.204	-0.028	0.744	0.744
+2015	0.182	0.207	-0.025	0.736	0.74
+2016	0.184	0.209	-0.025	0.74	0.75
+2017	0.183	0.207	-0.024	0.73	0.75
+2018	0.181	0.206	-0.025	0.73	0.76
+2019	0.181	0.21	-0.029	0.74	0.77
+2020	0.181	0.213	-0.032	0.74	0.79
+2021	0.181	0.214	-0.033	0.74	0.8
+2022	0.181	0.219	-0.038	0.75	0.82
+2023	0.182	0.218	-0.037	0.76	0.84
+2024	0.182	0.217	-0.035	0.77	0.85
+2025	0.183	0.222	-0.038	0.78	0.87
+2026	0.183	0.224	-0.041	0.79	0.89
+2027	0.184	0.227	-0.043	0.8	0.92
+2028	0.185	0.23	-0.045	0.82	0.95
+2029	0.186	0.233	-0.047	0.83	0.99
+2030	0.186	0.235	-0.049	0.85	1.04
+2031	0.187	0.238	-0.051	0.87	1.09
+2032	0.188	0.24	-0.052	0.88	1.14
+2033	0.189	0.242	-0.053	0.9	1.21
+2034	0.189	0.244	-0.054	0.92	1.27
+2035	0.19	0.246	-0.055	0.94	1.35
+2036	0.191	0.247	-0.057	0.96	1.42
+2037	0.192	0.249	-0.057	0.98	1.5
+2038	0.192	0.25	-0.058	0.99	1.58
+2039	0.193	0.252	-0.058	1.01	1.66
+2040	0.194	0.253	-0.059	1.03	1.75
+
+
+
